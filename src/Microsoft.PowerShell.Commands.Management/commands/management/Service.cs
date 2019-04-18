@@ -649,7 +649,7 @@ namespace Microsoft.PowerShell.Commands
                 hService = NativeMethods.OpenServiceW(
                     hScManager,
                     service.ServiceName,
-                    NativeMethods.SERVICE_QUERY_CONFIG
+                    NativeMethods.SERVICE_QUERY_CONFIG | NativeMethods.READ_CONTROL
                 );
                 if (IntPtr.Zero == hService)
                 {
@@ -672,8 +672,8 @@ namespace Microsoft.PowerShell.Commands
                 NativeMethods.QUERY_SERVICE_CONFIG serviceInfo = new NativeMethods.QUERY_SERVICE_CONFIG();
                 querySuccessful = querySuccessful && NativeMethods.QueryServiceConfig(hService, out serviceInfo);
 
-                NativeMethods.QUERY_SERVICE_CONFIG serviceInfo = new NativeMethods.QUERY_SERVICE_CONFIG();
-                querySuccessful = querySuccessful && NativeMethods.QueryServiceObjectSecurity(hService, out serviceInfo);
+                NativeMethods.SERVICE_SECURITY_DESCRIPTOR securityInfo = new NativeMethods.SERVICE_SECURITY_DESCRIPTOR();
+                querySuccessful = querySuccessful && NativeMethods.QueryServiceObjectSecurityInfo(hService, out securityInfo);
 
                 if (!querySuccessful)
                 {
@@ -694,7 +694,7 @@ namespace Microsoft.PowerShell.Commands
                 serviceAsPSObj.Properties.Add(noteProperty, true);
                 serviceAsPSObj.TypeNames.Insert(0, "System.Service.ServiceController#Description");
 
-                noteProperty = new PSProperty("SecurityDescriptor", description.lpSecurityDescriptor);
+                noteProperty = new PSProperty("SecurityDescriptor", securityInfo.lpSecurityDescriptor);
                 serviceAsPSObj.Properties.Add(noteProperty, true);
                 serviceAsPSObj.TypeNames.Insert(0, "System.Service.ServiceController#SecurityDescriptor");
 
@@ -2622,6 +2622,7 @@ namespace Microsoft.PowerShell.Commands
         internal const DWORD SERVICE_CONFIG_DELAYED_AUTO_START_INFO = 3;
         internal const DWORD SERVICE_CONFIG_SERVICE_SID_INFO = 5;
         internal const DWORD WRITE_DAC = 262144;
+        internal const DWORD READ_CONTROL = 131072;
         internal const DWORD WRITE_OWNER =524288;
         internal const DWORD SERVICE_WIN32_OWN_PROCESS = 0x10;
         internal const DWORD SERVICE_ERROR_NORMAL = 1;
@@ -2648,7 +2649,7 @@ namespace Microsoft.PowerShell.Commands
         bool QueryServiceObjectSecurity(
             NakedWin32Handle hSCManager,
             System.Security.AccessControl.SecurityInfos dwSecurityInformation,
-            byte[] lpSecurityDescriptor,
+            IntPtr lpSecurityDescriptor,
             DWORD cbBufSize,
             out DWORD pcbBytesNeeded
             );
@@ -2716,6 +2717,12 @@ namespace Microsoft.PowerShell.Commands
         };
 
         [StructLayout(LayoutKind.Sequential)]
+        internal struct SERVICE_SECURITY_DESCRIPTOR
+        {
+            [MarshalAs(UnmanagedType.LPWStr)] internal string lpSecurityDescriptor;
+        };
+
+        [StructLayout(LayoutKind.Sequential)]
         internal struct QUERY_SERVICE_CONFIG
         {
             internal uint dwServiceType;
@@ -2727,7 +2734,6 @@ namespace Microsoft.PowerShell.Commands
             [MarshalAs(UnmanagedType.LPWStr)] internal string lpDependencies;
             [MarshalAs(UnmanagedType.LPWStr)] internal string lpServiceStartName;
             [MarshalAs(UnmanagedType.LPWStr)] internal string lpDisplayName;
-            [MarshalAs(UnmanagedType.LPWStr)] internal string lpSecurityDescriptor;
         };
 
         [StructLayout(LayoutKind.Sequential)]
@@ -2863,35 +2869,38 @@ namespace Microsoft.PowerShell.Commands
             return status;
         }
 
-        internal static bool QueryServiceObjectSecurity(NakedWin32Handle hService, out NativeMethods.QUERY_SERVICE_CONFIG configStructure)
+        internal static bool QueryServiceObjectSecurityInfo(NakedWin32Handle hService, out NativeMethods.SERVICE_SECURITY_DESCRIPTOR configStructure)
         {
             IntPtr lpBuffer = IntPtr.Zero;
-            configStructure = default(NativeMethods.QUERY_SERVICE_CONFIG);
+            configStructure = default(NativeMethods.SERVICE_SECURITY_DESCRIPTOR);
             DWORD bufferSize, bufferSizeNeeded = 0;
+            Console.WriteLine("here");
             bool status = NativeMethods.QueryServiceObjectSecurity(
                 hSCManager: hService,
-                lpServiceConfig: SecurityInfos.DiscretionaryAcl,
-
+                dwSecurityInformation: SecurityInfos.DiscretionaryAcl,
+                lpSecurityDescriptor: lpBuffer,
                 cbBufSize: 0,
                 pcbBytesNeeded: out bufferSizeNeeded);
-
+            Console.WriteLine("and here");
             if (status != true && Marshal.GetLastWin32Error() != ERROR_INSUFFICIENT_BUFFER)
             {
+                Console.WriteLine("failed here " + Marshal.GetLastWin32Error());
                 return status;
             }
-
+            Console.WriteLine("here again");
             try
             {
                 lpBuffer = Marshal.AllocCoTaskMem((int)bufferSizeNeeded);
                 bufferSize = bufferSizeNeeded;
 
-                status = NativeMethods.QueryServiceConfigW(
-                    hService,
-                    lpBuffe,
-                    lpBuffer,
-                    bufferSize,
-                    out bufferSizeNeeded);
-                configStructure = (NativeMethods.QUERY_SERVICE_CONFIG)Marshal.PtrToStructure(lpBuffer, typeof(NativeMethods.QUERY_SERVICE_CONFIG));
+                status = NativeMethods.QueryServiceObjectSecurity(
+                hService,
+                SecurityInfos.DiscretionaryAcl,
+                lpBuffer,
+                bufferSize,
+                out bufferSizeNeeded);
+                Console.WriteLine("here again and again");
+                configStructure = (NativeMethods.SERVICE_SECURITY_DESCRIPTOR)Marshal.PtrToStructure(lpBuffer, typeof(NativeMethods.SERVICE_SECURITY_DESCRIPTOR));
             }
             finally
             {
