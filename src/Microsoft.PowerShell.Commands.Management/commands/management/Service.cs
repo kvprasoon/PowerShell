@@ -649,7 +649,7 @@ namespace Microsoft.PowerShell.Commands
                 hService = NativeMethods.OpenServiceW(
                     hScManager,
                     service.ServiceName,
-                    NativeMethods.SERVICE_QUERY_CONFIG | NativeMethods.READ_CONTROL
+                    NativeMethods.SERVICE_QUERY_CONFIG | NativeMethods.READ_CONTROL | NativeMethods.WRITE_DAC
                 );
                 if (IntPtr.Zero == hService)
                 {
@@ -663,8 +663,11 @@ namespace Microsoft.PowerShell.Commands
                         ErrorCategory.PermissionDenied);
                 }
 
+                NativeMethods.SERVICE_SECURITY_DESCRIPTOR securityInfo = new NativeMethods.SERVICE_SECURITY_DESCRIPTOR();
+                bool querySuccessful = NativeMethods.QueryServiceObjectSecurityInfo(hService, out securityInfo);
+
                 NativeMethods.SERVICE_DESCRIPTIONW description = new NativeMethods.SERVICE_DESCRIPTIONW();
-                bool querySuccessful = NativeMethods.QueryServiceConfig2<NativeMethods.SERVICE_DESCRIPTIONW>(hService, NativeMethods.SERVICE_CONFIG_DESCRIPTION, out description);
+                querySuccessful = querySuccessful && NativeMethods.QueryServiceConfig2<NativeMethods.SERVICE_DESCRIPTIONW>(hService, NativeMethods.SERVICE_CONFIG_DESCRIPTION, out description);
 
                 NativeMethods.SERVICE_DELAYED_AUTO_START_INFO autostartInfo = new NativeMethods.SERVICE_DELAYED_AUTO_START_INFO();
                 querySuccessful = querySuccessful && NativeMethods.QueryServiceConfig2<NativeMethods.SERVICE_DELAYED_AUTO_START_INFO>(hService, NativeMethods.SERVICE_CONFIG_DELAYED_AUTO_START_INFO, out autostartInfo);
@@ -672,8 +675,6 @@ namespace Microsoft.PowerShell.Commands
                 NativeMethods.QUERY_SERVICE_CONFIG serviceInfo = new NativeMethods.QUERY_SERVICE_CONFIG();
                 querySuccessful = querySuccessful && NativeMethods.QueryServiceConfig(hService, out serviceInfo);
 
-                NativeMethods.SERVICE_SECURITY_DESCRIPTOR securityInfo = new NativeMethods.SERVICE_SECURITY_DESCRIPTOR();
-                querySuccessful = querySuccessful && NativeMethods.QueryServiceObjectSecurityInfo(hService, out securityInfo);
 
                 if (!querySuccessful)
                 {
@@ -2622,7 +2623,7 @@ namespace Microsoft.PowerShell.Commands
         internal const DWORD SERVICE_CONFIG_DELAYED_AUTO_START_INFO = 3;
         internal const DWORD SERVICE_CONFIG_SERVICE_SID_INFO = 5;
         internal const DWORD WRITE_DAC = 262144;
-        internal const DWORD READ_CONTROL = 131072;
+        internal const DWORD READ_CONTROL = 0x02000000;
         internal const DWORD WRITE_OWNER =524288;
         internal const DWORD SERVICE_WIN32_OWN_PROCESS = 0x10;
         internal const DWORD SERVICE_ERROR_NORMAL = 1;
@@ -2649,7 +2650,7 @@ namespace Microsoft.PowerShell.Commands
         bool QueryServiceObjectSecurity(
             NakedWin32Handle hSCManager,
             System.Security.AccessControl.SecurityInfos dwSecurityInformation,
-            IntPtr lpSecurityDescriptor,
+            byte[] lpSecurityDescriptor,
             DWORD cbBufSize,
             out DWORD pcbBytesNeeded
             );
@@ -2872,13 +2873,14 @@ namespace Microsoft.PowerShell.Commands
         internal static bool QueryServiceObjectSecurityInfo(NakedWin32Handle hService, out NativeMethods.SERVICE_SECURITY_DESCRIPTOR configStructure)
         {
             IntPtr lpBuffer = IntPtr.Zero;
+            byte[] rawDacl = new byte[0];
             configStructure = default(NativeMethods.SERVICE_SECURITY_DESCRIPTOR);
             DWORD bufferSize, bufferSizeNeeded = 0;
             Console.WriteLine("here");
             bool status = NativeMethods.QueryServiceObjectSecurity(
                 hSCManager: hService,
                 dwSecurityInformation: SecurityInfos.DiscretionaryAcl,
-                lpSecurityDescriptor: lpBuffer,
+                lpSecurityDescriptor: rawDacl,
                 cbBufSize: 0,
                 pcbBytesNeeded: out bufferSizeNeeded);
             Console.WriteLine("and here");
@@ -2896,7 +2898,7 @@ namespace Microsoft.PowerShell.Commands
                 status = NativeMethods.QueryServiceObjectSecurity(
                 hService,
                 SecurityInfos.DiscretionaryAcl,
-                lpBuffer,
+                rawDacl,
                 bufferSize,
                 out bufferSizeNeeded);
                 Console.WriteLine("here again and again");
