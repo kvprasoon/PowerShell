@@ -10,7 +10,9 @@ using System.Management.Automation.Internal;
 using System.Management.Automation.Language;
 using System.Management.Automation.Runspaces;
 using System.Reflection;
+
 using Microsoft.PowerShell.Commands;
+
 using Dbg = System.Management.Automation.Diagnostics;
 
 namespace System.Management.Automation
@@ -888,7 +890,7 @@ namespace System.Management.Automation
         /// Describes whether the module was considered compatible at load time.
         /// Any module not on the System32 module path should have this as true.
         /// Modules loaded from the System32 module path will have this as true if they
-        /// have declared edition compatibility with PowerShell Core. Currently, this field
+        /// have declared edition compatibility with PowerShell 6+. Currently, this field
         /// is true for all non-psd1 module files, when it should not be. Being able to
         /// load psm1/dll modules from the System32 module path without needing to skip
         /// the edition check is considered a bug and should be fixed.
@@ -1201,17 +1203,6 @@ namespace System.Management.Automation
             Dbg.Assert(name != null, "AddDetectedAliasExport should not be called with a null value");
 
             DetectedAliasExports[name] = value;
-        }
-
-        /// <summary>
-        /// Lists the workflows exported by this module.
-        /// </summary>
-        public Dictionary<string, FunctionInfo> ExportedWorkflows
-        {
-            get
-            {
-                return new Dictionary<string, FunctionInfo>(StringComparer.OrdinalIgnoreCase);
-            }
         }
 
         /// <summary>
@@ -1580,10 +1571,6 @@ namespace System.Management.Automation
         /// Indicates that this is cmdlets-over-objects module (a powershell file with a .CDXML extension)
         /// </summary>
         Cim,
-        /// <summary>
-        /// Indicates that this is workflow module (a powershell file with a .XAML extension)
-        /// </summary>
-        Workflow,
     }
 
     /// <summary>

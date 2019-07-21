@@ -4,12 +4,10 @@
 using System;
 using System.Collections;
 using System.Collections.ObjectModel;
-using System.Text;
 using System.Globalization;
-using System.Threading;
-using System.Security.AccessControl;
 using System.IO;
-using System.Diagnostics.CodeAnalysis;
+using System.Security.AccessControl;
+using System.Text;
 
 using System.Management.Automation;
 using System.Management.Automation.Internal;
@@ -21,7 +19,6 @@ using Dbg = System.Management.Automation.Diagnostics;
 using WSManNativeApi = System.Management.Automation.Remoting.Client.WSManNativeApi;
 using PowerShellApi = System.Management.Automation.PowerShell;
 
-using Microsoft.Win32;
 using System.Security;
 using System.Collections.Generic;
 using System.Security.Principal;
@@ -341,26 +338,6 @@ else
         [ValidateSet("x86", "amd64")]
         public string ProcessorArchitecture { get; set; }
 
-        /// <summary>
-        /// SessionType.
-        /// </summary>
-        /// Only want this on non assemblyName parameter set, since assembly decides the sessiontype.
-        [Parameter(ParameterSetName = PSSessionConfigurationCommandBase.NameParameterSetName)]
-        public PSSessionType SessionType
-        {
-            get
-            {
-                return sessionType;
-            }
-
-            set
-            {
-                sessionType = value;
-            }
-        }
-
-        internal PSSessionType sessionType = PSSessionType.DefaultRemoteShell;
-
         #endregion
 
         #region Constructors
@@ -500,7 +477,7 @@ else
             {
                 PSInvalidOperationException ioe = new PSInvalidOperationException(
                         StringUtil.Format(RemotingErrorIdStrings.PluginDllMissing, RemotingConstants.PSPluginDLLName));
-                    ThrowTerminatingError(ioe.ErrorRecord);
+                ThrowTerminatingError(ioe.ErrorRecord);
             }
         }
 
@@ -648,7 +625,7 @@ else
         protected override void EndProcessing()
         {
             System.Management.Automation.Tracing.Tracer tracer = new System.Management.Automation.Tracing.Tracer();
-            tracer.EndpointRegistered(this.Name, this.sessionType.ToString(), WindowsIdentity.GetCurrent().Name);
+            tracer.EndpointRegistered(this.Name, WindowsIdentity.GetCurrent().Name);
         }
 
         #endregion
@@ -821,28 +798,6 @@ else
             StringBuilder initParameters = new StringBuilder();
 
             bool assemblyAndTypeTokensSet = false;
-            if (sessionType == PSSessionType.Workflow)
-            {
-                initParameters.Append(string.Format(CultureInfo.InvariantCulture,
-                    initParamFormat,
-                    ConfigurationDataFromXML.ENDPOINTCONFIGURATIONTYPE,
-                    sessionType,
-                    Environment.NewLine));
-
-                initParameters.Append(string.Format(CultureInfo.InvariantCulture,
-                initParamFormat,
-                ConfigurationDataFromXML.ASSEMBLYTOKEN,
-                ConfigurationDataFromXML.WORKFLOWCOREASSEMBLY,
-                Environment.NewLine));
-
-                initParameters.Append(string.Format(CultureInfo.InvariantCulture,
-                    initParamFormat,
-                    ConfigurationDataFromXML.SHELLCONFIGTYPETOKEN,
-                    ConfigurationDataFromXML.WORKFLOWCORETYPENAME,
-                    Environment.NewLine));
-
-                assemblyAndTypeTokensSet = true;
-            }
 
             // DISC endpoint
             if (Path != null)
@@ -1026,7 +981,7 @@ else
                 // Copy File.
                 string destConfigFileDirectory = System.IO.Path.GetDirectoryName(destConfigFilePath);
 
-                // The directory is not auto-created for PowerShell Core.
+                // The directory is not auto-created for PowerShell.
                 // The call will create it or return its path if it already exists
                 System.IO.Directory.CreateDirectory(destConfigFileDirectory);
 
@@ -1169,7 +1124,7 @@ else
                     tempValue);
             }
 
-            if (sessionType == PSSessionType.Workflow && !isUseSharedProcessSpecified)
+            if (!isUseSharedProcessSpecified)
             {
                 UseSharedProcess = true;
             }
@@ -1214,13 +1169,6 @@ else
 
             StringBuilder sessionConfigurationData = new StringBuilder();
 
-            if (sessionType == PSSessionType.Workflow)
-            {
-                List<object> modifiedModulePath = new List<object>(modulesToImport ?? Array.Empty<string>());
-                modifiedModulePath.Insert(0, ConfigurationDataFromXML.PSWORKFLOWMODULE);
-                modulesToImport = modifiedModulePath.ToArray();
-            }
-
             if (modulesToImport != null && modulesToImport.Length > 0)
             {
                 sessionConfigurationData.Append(string.Format(CultureInfo.InvariantCulture,
@@ -1262,7 +1210,7 @@ else
                 transportOption = transportOption.Clone() as PSTransportOption;
             }
 
-            transportOption.LoadFromDefaults(sessionType, true);
+            transportOption.LoadFromDefaults(true);
 
             // If useSharedHost is set to false, we need to set hostIdleTimeout to 0 as well, else WS-Man throws error
             if (isUseSharedProcessSpecified && !UseSharedProcess)
@@ -1527,7 +1475,7 @@ else
         /// <returns></returns>
         internal static string GetWinrmPluginShellName()
         {
-            // PowerShell Core uses a versioned directory to hold the plugin
+            // PowerShell uses a versioned directory to hold the plugin
             return string.Concat("PowerShell.", PSVersionInfo.GitCommitId);
         }
 
@@ -1537,8 +1485,8 @@ else
         /// <returns></returns>
         internal static string GetWinrmPluginDllPath()
         {
-            // PowerShell Core uses its versioned directory instead of system32
-            string pluginDllDirectory =  System.IO.Path.Combine("%windir%\\system32\\PowerShell", PSVersionInfo.GitCommitId);
+            // PowerShell 6+ uses its versioned directory instead of system32
+            string pluginDllDirectory = System.IO.Path.Combine("%windir%\\system32\\PowerShell", PSVersionInfo.GitCommitId);
             return System.IO.Path.Combine(pluginDllDirectory, RemotingConstants.PSPluginDLLName);
         }
 
@@ -2253,7 +2201,6 @@ else
         /// This enables the user to specify an SDDL on the shell.
         /// The default SDDL is the default used by Wsman.
         /// </summary>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Sddl")]
         [Parameter()]
         public string SecurityDescriptorSddl
         {
@@ -2400,7 +2347,6 @@ else
         /// </summary>
         [Parameter(ParameterSetName = NameParameterSetName)]
         [Parameter(ParameterSetName = AssemblyNameParameterSetName)]
-        [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         public object[] ModulesToImport
         {
             get
@@ -2539,7 +2485,7 @@ function Unregister-PSSessionConfiguration
                 if (($pluginFileName.Value -match 'system32\\{0}') -OR
                     ($pluginFileName.Value -match 'syswow64\\{0}'))
                 {{
-                    # Filter out WindowsPowerShell endpoints when running as PowerShell Core
+                    # Filter out WindowsPowerShell endpoints when running as PowerShell 6+
                     return
                 }}
            }}
@@ -2773,7 +2719,7 @@ function ExtractPluginProperties([string]$pluginDir, $objectToWriteTo)
 
     Get-Details $pluginDir $h
 
-    # Workflow is not supported in PowerShell Core. Attempting to load the
+    # Workflow is not supported in PowerShell 6+. Attempting to load the
     # assembly results in a FileNotFoundException.
     if (![System.Management.Automation.Platform]::IsCoreCLR -AND
         $h[""AssemblyName""] -eq ""Microsoft.PowerShell.Workflow.ServiceCore, Version=3.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL"") {{
@@ -2852,11 +2798,11 @@ $args[0] | ForEach-Object {{
         {{
             # Filter the endpoints based on the typeof PowerShell that is
             # executing the cmdlet. {1} in another location indicates that it
-            # is a PowerShell Core endpoint
+            # is a PowerShell 6+ endpoint
             if (!($customPluginObject.FileName -match 'system32\\{1}') -AND # WindowsPowerShell
                 !($customPluginObject.FileName -match 'syswow64\\{1}'))     # WOW64 WindowsPowerShell
             {{
-                # Add the PowerShell Core endpoint when running as PowerShell Core
+                # Add the PowerShell 6+ endpoint when running PowerShell 6+
                 $shellsFound++
                 $customPluginObject
             }}
@@ -2896,7 +2842,6 @@ $args[0] | ForEach-Object {{
 
         /// <summary>
         /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         [Parameter(Position = 0, Mandatory = false)]
         [ValidateNotNullOrEmpty()]
         public string[] Name { get; set; }
@@ -3117,7 +3062,7 @@ function Set-PSSessionConfiguration([PSObject]$customShellObject,
    }}
    else
    {{
-        # Filter out WindowsPowerShell endpoints when running as PowerShell Core
+        # Filter out WindowsPowerShell endpoints when running as PowerShell 6+
         if (($pluginFileName.Value -match 'system32\\{0}') -OR
             ($pluginFileName.Value -match 'syswow64\\{0}'))
         {{
@@ -3481,15 +3426,6 @@ Set-PSSessionConfiguration $args[0] $args[1] $args[2] $args[3] $args[4] $args[5]
                     {
                         Dbg.Assert(false, "This should never happen. ps.Invoke always return a Collection<PSObject>");
                     }
-
-                    // UseSharedProcess Can not be False for Workflow session type configuration
-                    //
-                    if (UseSharedProcess == false &&
-                        psObjectCollection[0] != null &&
-                        string.Compare(psObjectCollection[0].ToString(), "Workflow", StringComparison.OrdinalIgnoreCase) == 0)
-                    {
-                        throw new PSInvalidOperationException(RemotingErrorIdStrings.UseSharedProcessCannotBeFalseForWorkflowSessionType);
-                    }
                 }
             }
 
@@ -3783,28 +3719,18 @@ Set-PSSessionConfiguration $args[0] $args[1] $args[2] $args[3] $args[4] $args[5]
                     StringBuilder sessionConfigurationData = new StringBuilder();
 
                     string modulePathParameter = null;
-                    string unsetModulePathStr = string.Empty;
                     bool unsetModulePath = false;
                     if (modulePathSpecified)
                     {
-                        bool isWorkflowConfiguration = IsWorkflowConfigurationType(ps);
                         if (modulesToImport == null ||
                             modulesToImport.Length == 0 ||
                             (modulesToImport.Length == 1 && modulesToImport[0] is string && ((string)modulesToImport[0]).Equals(string.Empty, StringComparison.OrdinalIgnoreCase)))
                         {
                             unsetModulePath = true;
-                            unsetModulePathStr = isWorkflowConfiguration ? ConfigurationDataFromXML.PSWORKFLOWMODULE : string.Empty;
                         }
                         else
                         {
                             modulePathParameter = PSSessionConfigurationCommandUtilities.GetModulePathAsString(this.modulesToImport).Trim();
-                            // Add the built-in module path if it's a workflow config
-                            if (!string.IsNullOrEmpty(modulePathParameter) && isWorkflowConfiguration)
-                            {
-                                List<object> modifiedModulePath = new List<object>(modulesToImport);
-                                modifiedModulePath.Insert(0, ConfigurationDataFromXML.PSWORKFLOWMODULE);
-                                modulePathParameter = PSSessionConfigurationCommandUtilities.GetModulePathAsString(modifiedModulePath.ToArray()).Trim();
-                            }
                         }
                     }
 
@@ -3825,7 +3751,7 @@ Set-PSSessionConfiguration $args[0] $args[1] $args[2] $args[3] $args[4] $args[5]
                     {
                         sessionConfigurationData.Append(string.Format(CultureInfo.InvariantCulture,
                                 initParamFormat,
-                                PSSessionConfigurationData.ModulesToImportToken, unsetModulePathStr));
+                                PSSessionConfigurationData.ModulesToImportToken, string.Empty));
                     }
                     // unsetModulePath is false AND modulePathParameter is not empty.
                     // 1. modulePathSpecified is false. In this case, modulePathParameter will be the original module path.
@@ -3890,30 +3816,6 @@ Set-PSSessionConfiguration $args[0] $args[1] $args[2] $args[3] $args[4] $args[5]
         #endregion
 
         #region Private Methods
-
-        /// <summary>
-        /// Check if the current configuration is a workflow endpoint.
-        /// </summary>
-        /// <returns></returns>
-        private bool IsWorkflowConfigurationType(System.Management.Automation.PowerShell ps)
-        {
-            // Get the AssemblyName
-            ps.AddScript(string.Format(CultureInfo.InvariantCulture, getAssemblyNameDataFormat, CodeGeneration.EscapeSingleQuotedStringContent(Name)));
-            Collection<PSObject> psObjectCollection = ps.Invoke(new object[] { Name }) as Collection<PSObject>;
-            if (psObjectCollection == null || psObjectCollection.Count != 1)
-            {
-                Dbg.Assert(false, "This should never happen. ps.Invoke always return a Collection<PSObject>");
-            }
-
-            if (psObjectCollection[0] == null)
-            {
-                // Not workflow endpoint, no assembly name
-                return false;
-            }
-
-            string assemblyNameOfCurrentConfiguration = psObjectCollection[0].BaseObject.ToString();
-            return assemblyNameOfCurrentConfiguration.Equals(ConfigurationDataFromXML.WORKFLOWCOREASSEMBLY, StringComparison.OrdinalIgnoreCase);
-        }
 
         private PSObject ConstructPropertiesForUpdate()
         {
@@ -4000,14 +3902,6 @@ Set-PSSessionConfiguration $args[0] $args[1] $args[2] $args[3] $args[4] $args[5]
                 {
                     using (System.Management.Automation.PowerShell ps = System.Management.Automation.PowerShell.Create())
                     {
-                        bool isWorkflowConfiguration = IsWorkflowConfigurationType(ps);
-                        if (!string.IsNullOrEmpty(modulePathParameter) && isWorkflowConfiguration)
-                        {
-                            List<object> modifiedModulePath = new List<object>(modulesToImport);
-                            modifiedModulePath.Insert(0, ConfigurationDataFromXML.PSWORKFLOWMODULE);
-                            modulePathParameter = PSSessionConfigurationCommandUtilities.GetModulePathAsString(modifiedModulePath.ToArray()).Trim();
-                        }
-
                         // Get the SessionConfigurationDataFormat
                         ps.AddScript(string.Format(CultureInfo.InvariantCulture, getSessionConfigurationDataSbFormat, CodeGeneration.EscapeSingleQuotedStringContent(Name)));
                         Collection<PSObject> psObjectCollection = ps.Invoke(new object[] { Name }) as Collection<PSObject>;
@@ -4045,10 +3939,9 @@ Set-PSSessionConfiguration $args[0] $args[1] $args[2] $args[3] $args[4] $args[5]
                                 // ModulesToImport exist in the pssessionConfigurationData
                                 if (scd.ModulesToImportInternal != null && scd.ModulesToImportInternal.Count != 0)
                                 {
-                                    string unsetModulePathStr = isWorkflowConfiguration ? ConfigurationDataFromXML.PSWORKFLOWMODULE : string.Empty;
                                     sessionConfigurationData.Append(string.Format(CultureInfo.InvariantCulture,
                                         initParamFormat,
-                                        PSSessionConfigurationData.ModulesToImportToken, unsetModulePathStr));
+                                        PSSessionConfigurationData.ModulesToImportToken, string.Empty));
                                     if (!string.IsNullOrEmpty(privateData))
                                     {
                                         sessionConfigurationData.Append(string.Format(CultureInfo.InvariantCulture, privateDataFormat, privateData));
@@ -4371,7 +4264,6 @@ $_ | Enable-PSSessionConfiguration -force $args[0] -sddl $args[1] -isSDDLSpecifi
         /// <summary>
         /// Configurations to Enable.
         /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         [Parameter(Position = 0, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
         [ValidateNotNullOrEmpty]
         public string[] Name { get; set; }
@@ -4403,7 +4295,6 @@ $_ | Enable-PSSessionConfiguration -force $args[0] -sddl $args[1] -isSDDLSpecifi
         /// This enables the user to specify an SDDL for whom the session
         /// configuration is enabled.
         /// </summary>
-        [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Sddl")]
         [Parameter()]
         public string SecurityDescriptorSddl
         {
@@ -4659,7 +4550,6 @@ $_ | Disable-PSSessionConfiguration -force $args[0] -whatif:$args[1] -confirm:$a
         /// <summary>
         /// Configurations to Enable.
         /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         [Parameter(Position = 0, ValueFromPipeline = true, ValueFromPipelineByPropertyName = true)]
         [ValidateNotNullOrEmpty]
         public string[] Name { get; set; }
@@ -4905,7 +4795,7 @@ param(
     #   Microsoft.PowerShell
     #   Microsoft.PowerShell32 (wow64)
     #
-    # PowerShell Core:
+    # PowerShell:
     #   PowerShell.<version ID>
     #
     $errorCount = $error.Count
@@ -4972,7 +4862,7 @@ param(
 
             Register-EndpointIfNotPresent -Name (""PowerShell."" + $powershellVersionMajor) $Force $queryForRegisterDefault $captionForRegisterDefault
 
-            # PowerShell Workflow and WOW are not supported for PowerShell Core
+            # PowerShell Workflow and WOW are not supported for PowerShell 6+
             if (![System.Management.Automation.Platform]::IsCoreCLR)
             {{
                 # Check Microsoft.PowerShell.Workflow endpoint
@@ -5521,7 +5411,7 @@ Disable-PSRemoting -force:$args[0] -queryForSet $args[1] -captionForSet $args[2]
 
             if (!string.IsNullOrEmpty(this.Username))
             {
-                if (this.Username.IndexOf("\\", StringComparison.OrdinalIgnoreCase) >= 0)
+                if (this.Username.Contains('\\'))
                 {
                     validator = null;
 
@@ -5599,7 +5489,6 @@ namespace Microsoft.PowerShell.Commands.Internal
     /// <summary>
     /// This class is public for implementation reasons only and should not be used.
     /// </summary>
-    [SuppressMessage("Microsoft.MSInternal", "CA903:InternalNamespaceShouldNotContainPublicTypes", Justification = "Needed for resources from scripts")]
     public static class RemotingErrorResources
     {
         /// <summary>

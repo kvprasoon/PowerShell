@@ -25,7 +25,7 @@ function Start-PSPackage {
         [string]$Name = "powershell",
 
         # Ubuntu, CentOS, Fedora, macOS, and Windows packages are supported
-        [ValidateSet("msix", "deb", "osxpkg", "rpm", "msi", "zip", "nupkg", "tar", "tar-arm", "tar-arm64", "tar-alpine", "fxdependent")]
+        [ValidateSet("msix", "deb", "osxpkg", "rpm", "msi", "zip", "nupkg", "tar", "tar-arm", "tar-arm64", "tar-alpine", "fxdependent", "fxdependent-win-desktop")]
         [string[]]$Type,
 
         # Generate windows downlevel package
@@ -41,7 +41,7 @@ function Start-PSPackage {
     )
 
     DynamicParam {
-        if ("zip" -eq $Type -or "fxdependent" -eq $Type) {
+        if ("zip" -eq $Type -or "fxdependent" -eq $Type -or "fxdependent-win-desktop" -eq $Type) {
             # Add a dynamic parameter '-IncludeSymbols' when the specified package type is 'zip' only.
             # The '-IncludeSymbols' parameter can be used to indicate that the package should only contain powershell binaries and symbols.
             $ParameterAttr = New-Object "System.Management.Automation.ParameterAttribute"
@@ -88,6 +88,9 @@ function Start-PSPackage {
         if ($Type -eq 'fxdependent') {
             $NameSuffix = "win-fxdependent"
             Write-Log "Packaging : '$Type'; Packaging Configuration: '$Configuration'"
+        } elseif ($Type -eq 'fxdependent-win-desktop') {
+            $NameSuffix = "win-fxdependentWinDesktop"
+            Write-Log "Packaging : '$Type'; Packaging Configuration: '$Configuration'"
         } else {
             Write-Log "Packaging RID: '$Runtime'; Packaging Configuration: '$Configuration'"
         }
@@ -120,19 +123,19 @@ function Start-PSPackage {
             $actualParams += '-PSModuleRestore'
         }
 
-        $precheckFailed = if ($Type -eq 'fxdependent' -or $Type -eq 'tar-alpine') {
+        $precheckFailed = if ($Type -like 'fxdependent*' -or $Type -eq 'tar-alpine') {
             ## We do not check for runtime and crossgen for framework dependent package.
             -not $Script:Options -or                                ## Start-PSBuild hasn't been executed yet
             -not $PSModuleRestoreCorrect -or                        ## Last build didn't specify '-PSModuleRestore' correctly
             $Script:Options.Configuration -ne $Configuration -or    ## Last build was with configuration other than 'Release'
-            $Script:Options.Framework -ne "netcoreapp2.1"           ## Last build wasn't for CoreCLR
+            $Script:Options.Framework -ne "netcoreapp3.0"           ## Last build wasn't for CoreCLR
         } else {
             -not $Script:Options -or                                ## Start-PSBuild hasn't been executed yet
             -not $crossGenCorrect -or                               ## Last build didn't specify '-CrossGen' correctly
             -not $PSModuleRestoreCorrect -or                        ## Last build didn't specify '-PSModuleRestore' correctly
             $Script:Options.Runtime -ne $Runtime -or                ## Last build wasn't for the required RID
             $Script:Options.Configuration -ne $Configuration -or    ## Last build was with configuration other than 'Release'
-            $Script:Options.Framework -ne "netcoreapp2.1"           ## Last build wasn't for CoreCLR
+            $Script:Options.Framework -ne "netcoreapp3.0"           ## Last build wasn't for CoreCLR
         }
 
         # Make sure the most recent build satisfies the package requirement
@@ -152,7 +155,7 @@ function Start-PSPackage {
             $params = @('-Clean')
 
             # CrossGen cannot be done for framework dependent package as it is runtime agnostic.
-            if ($Type -ne 'fxdependent') {
+            if ($Type -notlike 'fxdependent*') {
                 $params += '-CrossGen'
             }
 
@@ -164,6 +167,8 @@ function Start-PSPackage {
 
             if ($Type -eq 'fxdependent') {
                 $params += '-Runtime', 'fxdependent'
+            } elseif ($Type -eq 'fxdependent-win-desktop') {
+                $params += '-Runtime', 'fxdependent-win-desktop'
             } else {
                 $params += '-Runtime', $Runtime
             }
@@ -282,7 +287,8 @@ function Start-PSPackage {
                     New-ZipPackage @Arguments
                 }
             }
-            "fxdependent" {
+
+            { $_ -like "fxdependent*" } {
                 ## Remove PDBs from package to reduce size.
                 if(-not $IncludeSymbols.IsPresent) {
                     Get-ChildItem $Source -Filter *.pdb | Remove-Item -Force
@@ -1210,6 +1216,12 @@ function New-AfterScripts
             New-Item -Force -ItemType SymbolicLink -Target "/usr/lib/x86_64-linux-gnu/libcrypto.so.1.0.2" -Path "$Staging/libcrypto.so.1.0.0" > $null
         }
     }
+    elseif ($Environment.IsMacOS) {
+        # NOTE: The macos pkgutil doesn't support uninstall actions so we did not implement it.
+        # Handling uninstall can be done in Homebrew so we'll take advantage of that in the brew formula.
+        $AfterInstallScript = [io.path]::GetTempFileName()
+        $packagingStrings.MacOSAfterInstallScript -f "$Link" | Out-File -FilePath $AfterInstallScript -Encoding ascii
+    }
 
     return [PSCustomObject] @{
         AfterInstallScript = $AfterInstallScript
@@ -1437,7 +1449,7 @@ function CreateNugetPlatformFolder
         [string] $PlatformBinPath
     )
 
-    $destPath = New-Item -ItemType Directory -Path (Join-Path $PackageRuntimesFolder "$Platform/lib/netcoreapp2.1")
+    $destPath = New-Item -ItemType Directory -Path (Join-Path $PackageRuntimesFolder "$Platform/lib/netcoreapp3.0")
     $fullPath = Join-Path $PlatformBinPath $file
 
     if (-not(Test-Path $fullPath)) {
@@ -1535,7 +1547,7 @@ function New-ILNugetPackage
             $packageRuntimesFolder = New-Item (Join-Path $filePackageFolder.FullName 'runtimes') -ItemType Directory
 
             #region ref
-            $refFolder = New-Item (Join-Path $filePackageFolder.FullName 'ref/netcoreapp2.1') -ItemType Directory -Force
+            $refFolder = New-Item (Join-Path $filePackageFolder.FullName 'ref/netcoreapp3.0') -ItemType Directory -Force
             CopyReferenceAssemblies -assemblyName $fileBaseName -refBinPath $refBinPath -refNugetPath $refFolder -assemblyFileList $fileList
             #endregion ref
 
@@ -1655,7 +1667,7 @@ function New-ILNugetPackage
 }
 
 <#
-  Copy the generated reference assemblies to the 'ref/netcoreapp2.1' folder properly.
+  Copy the generated reference assemblies to the 'ref/netcoreapp3.0' folder properly.
   This is a helper function used by 'New-ILNugetPackage'
 #>
 function CopyReferenceAssemblies
@@ -1892,7 +1904,7 @@ function New-ReferenceAssembly
             Write-Log "Running: dotnet $arguments"
             Start-NativeExecution -sb {dotnet $arguments}
 
-            $refBinPath = Join-Path $projectFolder "bin/Release/netcoreapp2.1/$assemblyName.dll"
+            $refBinPath = Join-Path $projectFolder "bin/Release/netcoreapp3.0/$assemblyName.dll"
             if ($null -eq $refBinPath) {
                 throw "Reference assembly was not built."
             }
@@ -2546,7 +2558,7 @@ function New-MSIPatch
         # This example shows how to produce a Debug-x64 installer for development purposes.
         cd $RootPathOfPowerShellRepo
         Import-Module .\build.psm1; Import-Module .\tools\packaging\packaging.psm1
-        New-MSIPackage -Verbose -ProductCode (New-Guid) -ProductSourcePath '.\src\powershell-win-core\bin\Debug\netcoreapp2.1\win7-x64\publish' -ProductTargetArchitecture x64 -ProductVersion '1.2.3'
+        New-MSIPackage -Verbose -ProductCode (New-Guid) -ProductSourcePath '.\src\powershell-win-core\bin\Debug\netcoreapp3.0\win7-x64\publish' -ProductTargetArchitecture x64 -ProductVersion '1.2.3'
 #>
 function New-MSIPackage
 {
@@ -2608,7 +2620,7 @@ function New-MSIPackage
     $wixPaths = Get-WixPath
 
     $ProductSemanticVersion = Get-PackageSemanticVersion -Version $ProductVersion
-    $simpleProductVersion = '6'
+    $simpleProductVersion = '7'
     $isPreview = Test-IsPreview -Version $ProductSemanticVersion
     if ($isPreview)
     {
@@ -2746,7 +2758,7 @@ function New-MSIPackage
         # This example shows how to produce a Debug-x64 installer for development purposes.
         cd $RootPathOfPowerShellRepo
         Import-Module .\build.psm1; Import-Module .\tools\packaging\packaging.psm1
-        New-MSIXPackage -Verbose -ProductSourcePath '.\src\powershell-win-core\bin\Debug\netcoreapp2.1\win7-x64\publish' -ProductTargetArchitecture x64 -ProductVersion '1.2.3'
+        New-MSIXPackage -Verbose -ProductSourcePath '.\src\powershell-win-core\bin\Debug\netcoreapp3.0\win7-x64\publish' -ProductTargetArchitecture x64 -ProductVersion '1.2.3'
 #>
 function New-MSIXPackage
 {
@@ -2811,19 +2823,30 @@ function New-MSIXPackage
     Set-Content -Path "$ProductSourcePath\AppxManifest.xml" -Value $appxManifest -Force
     # Necessary image assets need to be in source assets folder
     $assets = @(
-        'Square150x150Logo.png'
-        'Square44x44Logo.png'
-        'Square44x44Logo.targetsize-48.png'
-        'Square44x44Logo.targetsize-48_altform-unplated.png'
-        'StoreLogo.png'
+        'Square150x150Logo'
+        'Square44x44Logo'
+        'Square44x44Logo.targetsize-48'
+        'Square44x44Logo.targetsize-48_altform-unplated'
+        'StoreLogo'
     )
 
     if (!(Test-Path "$ProductSourcePath\assets")) {
         $null = New-Item -ItemType Directory -Path "$ProductSourcePath\assets"
     }
 
+    $isPreview = Test-IsPreview -Version $ProductSemanticVersion
+    if ($isPreview) {
+        Write-Verbose "Using Preview assets" -Verbose
+    }
+
     $assets | ForEach-Object {
-        Copy-Item -Path "$RepoRoot\assets\$_" -Destination "$ProductSourcePath\assets\"
+        if ($isPreview) {
+            Copy-Item -Path "$RepoRoot\assets\$_-Preview.png" -Destination "$ProductSourcePath\assets\$_.png"
+        }
+        else {
+            Copy-Item -Path "$RepoRoot\assets\$_.png" -Destination "$ProductSourcePath\assets\"
+        }
+
     }
 
     if ($PSCmdlet.ShouldProcess("Create .msix package?")) {
@@ -2912,7 +2935,6 @@ function Test-FileWxs
         {
             $passed = $false
             $folder = Split-Path -Path $file
-            $name = Split-Path -Path $file -Leaf
             $heatNode = $heatNodesByFile[$file]
             $compGroupNode = Get-ComponentGroupNode -XmlDoc $newFilesAssetXml -XmlNsManager $xmlns
             $filesNode = Get-DirectoryNode -Node $heatNode -XmlDoc $newFilesAssetXml -XmlNsManager $xmlns
@@ -3214,6 +3236,7 @@ function New-GlobalToolNupkg
     param(
         [Parameter(Mandatory)] [string] $LinuxBinPath,
         [Parameter(Mandatory)] [string] $WindowsBinPath,
+        [Parameter(Mandatory)] [string] $WindowsDesktopBinPath,
         [Parameter(Mandatory)] [string] $PackageVersion,
         [Parameter(Mandatory)] [string] $DestinationPath,
         [Parameter(ParameterSetName="UnifiedPackage")] [switch] $UnifiedPackage
@@ -3225,13 +3248,13 @@ function New-GlobalToolNupkg
     Remove-Item -Path (Join-Path $LinuxBinPath 'libssl.so.1.0.0') -Verbose -Force -Recurse
 
     ## Remove unnecessary xml files
-    Get-ChildItem -Path $LinuxBinPath, $WindowsBinPath -Filter *.xml | Remove-Item -Verbose
+    Get-ChildItem -Path $LinuxBinPath, $WindowsBinPath, $WindowsDesktopBinPath -Filter *.xml | Remove-Item -Verbose
 
     if ($UnifiedPackage)
     {
         Write-Log "Creating a unified package"
         $packageInfo += @{ RootFolder = (New-TempFolder); PackageName = "PowerShell"; Type = "Unified"}
-        $ShimDllPath = Join-Path $WindowsBinPath "Microsoft.PowerShell.GlobalTool.Shim.dll"
+        $ShimDllPath = Join-Path $WindowsDesktopBinPath "Microsoft.PowerShell.GlobalTool.Shim.dll"
     }
     else
     {
@@ -3240,6 +3263,9 @@ function New-GlobalToolNupkg
 
         Write-Log "Reducing size of Windows package"
         ReduceFxDependentPackage -Path $WindowsBinPath -KeepWindowsRuntimes
+
+        Write-Log "Reducing size of WindowsDesktop package"
+        ReduceFxDependentPackage -Path $WindowsDesktopBinPath -KeepWindowsRuntimes
 
         Write-Log "Creating a Linux and Windows packages"
         $packageInfo += @{ RootFolder = (New-TempFolder); PackageName = "PowerShell.Linux.Alpine"; Type = "PowerShell.Linux.Alpine"}
@@ -3252,7 +3278,7 @@ function New-GlobalToolNupkg
     }
 
     $packageInfo | ForEach-Object {
-        $ridFolder = New-Item -Path (Join-Path $_.RootFolder "tools/netcoreapp2.1/any") -ItemType Directory
+        $ridFolder = New-Item -Path (Join-Path $_.RootFolder "tools/netcoreapp3.0/any") -ItemType Directory
 
         $packageType = $_.Type
 
@@ -3263,8 +3289,8 @@ function New-GlobalToolNupkg
                 $winFolder = New-Item (Join-Path $ridFolder "win") -ItemType Directory
                 $unixFolder = New-Item (Join-Path $ridFolder "unix") -ItemType Directory
 
-                Write-Log "Copying runtime assemblies from $WindowsBinPath"
-                Copy-Item "$WindowsBinPath\*" -Destination $winFolder -Recurse
+                Write-Log "Copying runtime assemblies from $WindowsDesktopBinPath"
+                Copy-Item "$WindowsDesktopBinPath\*" -Destination $winFolder -Recurse
 
                 Write-Log "Copying runtime assemblies from $LinuxBinPath"
                 Copy-Item "$LinuxBinPath\*" -Destination $unixFolder -Recurse
@@ -3325,8 +3351,8 @@ function New-GlobalToolNupkg
 
             "PowerShell.Windows.x64"
             {
-                Write-Log "Copying runtime assemblies from $WindowsBinPath for $packageType"
-                Copy-Item "$WindowsBinPath/*" -Destination $ridFolder -Recurse
+                Write-Log "Copying runtime assemblies from $WindowsDesktopBinPath for $packageType"
+                Copy-Item "$WindowsDesktopBinPath/*" -Destination $ridFolder -Recurse
                 Remove-Item -Path $ridFolder/runtimes/win-arm -Recurse -Force
                 $toolSettings = $packagingStrings.GlobalToolSettingsFile -f "pwsh.dll"
             }

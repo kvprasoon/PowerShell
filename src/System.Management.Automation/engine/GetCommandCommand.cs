@@ -2,18 +2,16 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Globalization;
-using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Management.Automation;
 using System.Management.Automation.Internal;
-using System.Diagnostics.CodeAnalysis;
 using System.Management.Automation.Language;
-using System.Reflection;
 using Dbg = System.Management.Automation.Diagnostics;
 
 namespace Microsoft.PowerShell.Commands
@@ -123,7 +121,6 @@ namespace Microsoft.PowerShell.Commands
         /// <summary>
         /// Gets or sets the PSSnapin/Module parameter to the cmdlet.
         /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays", Justification = "Cmdlets use arrays for parameters.")]
         [Parameter(ValueFromPipelineByPropertyName = true)]
         [Alias("PSSnapin")]
         public string[] Module
@@ -153,7 +150,6 @@ namespace Microsoft.PowerShell.Commands
         /// <summary>
         /// Gets or sets the FullyQualifiedModule parameter to the cmdlet.
         /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays", Justification = "Cmdlets use arrays for parameters.")]
         [Parameter(ValueFromPipelineByPropertyName = true)]
         public ModuleSpecification[] FullyQualifiedModule
         {
@@ -282,7 +278,6 @@ namespace Microsoft.PowerShell.Commands
         /// </summary>
         [Parameter]
         [ValidateNotNullOrEmpty]
-        [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         public string[] ParameterName
         {
             get { return _parameterNames; }
@@ -310,7 +305,6 @@ namespace Microsoft.PowerShell.Commands
         /// </summary>
         [Parameter]
         [ValidateNotNullOrEmpty]
-        [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         public PSTypeName[] ParameterType
         {
             get
@@ -363,7 +357,6 @@ namespace Microsoft.PowerShell.Commands
         /// This means it matches cmdlets where the uppercase characters for the noun match
         /// the given characters.  i.e., g-sgc would match Get-SomeGreatCmdlet.
         /// </summary>
-        [Experimental("PSUseAbbreviationExpansion", ExperimentAction.Show)]
         [Parameter(ValueFromPipelineByPropertyName = true, ParameterSetName = "AllCommandSet")]
         public SwitchParameter UseAbbreviationExpansion { get; set; }
 
@@ -571,7 +564,6 @@ namespace Microsoft.PowerShell.Commands
                 Telemetry.Internal.TelemetryAPI.ReportGetCommandFailed(Name, _timer.ElapsedMilliseconds);
             }
 #endif
-
         }
 
         /// <summary>

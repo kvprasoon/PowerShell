@@ -6,6 +6,7 @@ trigger:
     include:
     - master
     - release*
+    - feature*
   paths:
     include:
     - '*'
@@ -19,6 +20,7 @@ pr:
     include:
     - master
     - release*
+    - feature*
   paths:
     include:
     - '*'
@@ -83,7 +85,8 @@ jobs:
 - template: templates/verify-xunit.yml
   parameters:
     pool: Hosted Ubuntu 1604
-    dependsOn: linux_build
+    parentJobs:
+      - linux_build
 
 - job: CodeCovTestPackage
   displayName: CodeCoverage and Test Packages

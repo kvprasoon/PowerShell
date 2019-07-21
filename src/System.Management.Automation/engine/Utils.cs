@@ -232,13 +232,13 @@ namespace System.Management.Automation
                 // circumstance was it faster or more effective than this unrolled version.
                 outputBytes[outputByteIndex--] =
                     (byte)(
-                        ( (digits[byteWalker - 7] << 7)
+                        ((digits[byteWalker - 7] << 7)
                         | (digits[byteWalker - 6] << 6)
                         | (digits[byteWalker - 5] << 5)
                         | (digits[byteWalker - 4] << 4)
                         )
                     | (
-                        ( (digits[byteWalker - 3] << 3)
+                        ((digits[byteWalker - 3] << 3)
                         | (digits[byteWalker - 2] << 2)
                         | (digits[byteWalker - 1] << 1)
                         | (digits[byteWalker])
@@ -762,17 +762,33 @@ namespace System.Management.Automation
                     PolicyBase result = null;
                     switch (typeof(T).Name)
                     {
-                        case nameof(ScriptExecution):             result = policies.ScriptExecution; break;
-                        case nameof(ScriptBlockLogging):          result = policies.ScriptBlockLogging; break;
-                        case nameof(ModuleLogging):               result = policies.ModuleLogging; break;
-                        case nameof(ProtectedEventLogging):       result = policies.ProtectedEventLogging; break;
-                        case nameof(Transcription):               result = policies.Transcription; break;
-                        case nameof(UpdatableHelp):               result = policies.UpdatableHelp; break;
-                        case nameof(ConsoleSessionConfiguration): result = policies.ConsoleSessionConfiguration; break;
-                        default: Diagnostics.Assert(false, "Should be unreachable code. Update this switch block when new PowerShell policy types are added."); break;
+                        case nameof(ScriptExecution):
+                            result = policies.ScriptExecution;
+                            break;
+                        case nameof(ScriptBlockLogging):
+                            result = policies.ScriptBlockLogging;
+                            break;
+                        case nameof(ModuleLogging):
+                            result = policies.ModuleLogging;
+                            break;
+                        case nameof(ProtectedEventLogging):
+                            result = policies.ProtectedEventLogging;
+                            break;
+                        case nameof(Transcription):
+                            result = policies.Transcription;
+                            break;
+                        case nameof(UpdatableHelp):
+                            result = policies.UpdatableHelp;
+                            break;
+                        case nameof(ConsoleSessionConfiguration):
+                            result = policies.ConsoleSessionConfiguration;
+                            break;
+                        default:
+                            Diagnostics.Assert(false, "Should be unreachable code. Update this switch block when new PowerShell policy types are added.");
+                            break;
                     }
 
-                    if (result != null) { return (T) result; }
+                    if (result != null) { return (T)result; }
                 }
             }
 
@@ -790,8 +806,12 @@ namespace System.Management.Automation
             {nameof(UpdatableHelp), @"Software\Policies\Microsoft\PowerShellCore\UpdatableHelp"},
             {nameof(ConsoleSessionConfiguration), @"Software\Policies\Microsoft\PowerShellCore\ConsoleSessionConfiguration"}
         };
-        private static readonly ConcurrentDictionary<Tuple<ConfigScope, string>, PolicyBase> s_cachedPoliciesFromRegistry =
-            new ConcurrentDictionary<Tuple<ConfigScope, string>, PolicyBase>();
+
+        private static readonly ConcurrentDictionary<ConfigScope, ConcurrentDictionary<string, PolicyBase>> s_cachedPoliciesFromRegistry =
+            new ConcurrentDictionary<ConfigScope, ConcurrentDictionary<string, PolicyBase>>();
+
+        private static readonly Func<ConfigScope, ConcurrentDictionary<string, PolicyBase>> s_subCacheCreationDelegate =
+            key => new ConcurrentDictionary<string, PolicyBase>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// The implementation of fetching a specific kind of policy setting from the given configuration scope.
@@ -889,7 +909,7 @@ namespace System.Management.Automation
                 }
 
                 // If no property is set, then we consider this policy as undefined
-                return isAnyPropertySet ? (T) tInstance : null;
+                return isAnyPropertySet ? (T)tInstance : null;
             }
         }
 
@@ -899,6 +919,8 @@ namespace System.Management.Automation
         private static T GetPolicySettingFromGPO<T>(ConfigScope[] preferenceOrder) where T : PolicyBase, new()
         {
             PolicyBase policy = null;
+            string policyName = typeof(T).Name;
+
             foreach (ConfigScope scope in preferenceOrder)
             {
                 if (InternalTestHooks.BypassGroupPolicyCaching)
@@ -907,17 +929,14 @@ namespace System.Management.Automation
                 }
                 else
                 {
-                    var key = Tuple.Create(scope, typeof(T).Name);
-                    if (!s_cachedPoliciesFromRegistry.TryGetValue(key, out policy))
+                    var subordinateCache = s_cachedPoliciesFromRegistry.GetOrAdd(scope, s_subCacheCreationDelegate);
+                    if (!subordinateCache.TryGetValue(policyName, out policy))
                     {
-                        lock (s_cachedPoliciesFromRegistry)
-                        {
-                            policy = s_cachedPoliciesFromRegistry.GetOrAdd(key, tuple => GetPolicySettingFromGPOImpl<T>(tuple.Item1));
-                        }
+                        policy = subordinateCache.GetOrAdd(policyName, key => GetPolicySettingFromGPOImpl<T>(scope));
                     }
                 }
 
-                if (policy != null) { return (T) policy; }
+                if (policy != null) { return (T)policy; }
             }
 
             return null;
@@ -1017,11 +1036,7 @@ namespace System.Management.Automation
                     }
                     else
                     {
-                        // append to result
-                        foreach (PSModuleInfo temp in gmoOutPut)
-                        {
-                            result.Add(temp);
-                        }
+                        result.AddRange(gmoOutPut);
                     }
                 }
             }
@@ -1166,8 +1181,6 @@ namespace System.Management.Automation
             string compareName = Path.GetFileName(destinationPath);
             string noExtensionCompareName = Path.GetFileNameWithoutExtension(destinationPath);
 
-            // See if it's the correct length. If it's shorter than CON, AUX, etc, it can't be a device name.
-            // Likewise, if it's longer than 'CLOCK$', it can't be a device name.
             if (((compareName.Length < 3) || (compareName.Length > 6)) &&
                 ((noExtensionCompareName.Length < 3) || (noExtensionCompareName.Length > 6)))
             {
@@ -1956,8 +1969,8 @@ namespace System.Management.Automation.Internal
         internal static bool TestStopComputer;
         internal static bool TestWaitStopComputer;
         internal static bool TestRenameComputer;
-        internal static int  TestStopComputerResults;
-        internal static int  TestRenameComputerResults;
+        internal static int TestStopComputerResults;
+        internal static int TestRenameComputerResults;
 
         // It's useful to test that we don't depend on the ScriptBlock and AST objects and can use a re-parsed version.
         internal static bool IgnoreScriptBlockCache;

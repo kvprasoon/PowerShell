@@ -1853,11 +1853,6 @@ namespace System.Management.Automation
         public const string OnIdle = "PowerShell.OnIdle";
 
         /// <summary>
-        /// Called when a workflow job is started from a PowerShell script.
-        /// </summary>
-        public const string WorkflowJobStartEvent = "PowerShell.WorkflowJobStartEvent";
-
-        /// <summary>
         /// Called during scriptblock invocation.
         /// </summary>
         internal const string OnScriptBlockInvoke = "PowerShell.OnScriptBlockInvoke";
@@ -2289,8 +2284,10 @@ namespace System.Management.Automation
         /// <summary>
         /// Gets the time and date that this event was generated.
         /// </summary>
-        public DateTime TimeGenerated { get; internal set;
-// internal setter using during deserialization
+        public DateTime TimeGenerated
+        {
+            // internal setter using during deserialization
+            get; internal set;
         }
 
         /// <summary>

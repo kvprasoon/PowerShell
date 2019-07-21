@@ -2,18 +2,18 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Management.Automation.Runspaces;
-using System.Collections.ObjectModel;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Management.Automation;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Management.Automation.Internal;
-using System.Management.Automation.Help;
-using System.Runtime.InteropServices;
 using System.IO;
+using System.Linq;
+using System.Management.Automation;
+using System.Management.Automation.Help;
+using System.Management.Automation.Internal;
+using System.Management.Automation.Runspaces;
+using System.Runtime.InteropServices;
 #if !UNIX
 using Microsoft.Win32;
 #endif
@@ -64,7 +64,7 @@ namespace Microsoft.PowerShell.Commands
         /// </summary>
         [Parameter]
         [ValidateSet(
-            "Alias", "Cmdlet", "Provider", "General", "FAQ", "Glossary", "HelpFile", "ScriptCommand", "Function", "Filter", "ExternalScript", "All", "DefaultHelp", "Workflow", "DscResource", "Class", "Configuration",
+            "Alias", "Cmdlet", "Provider", "General", "FAQ", "Glossary", "HelpFile", "ScriptCommand", "Function", "Filter", "ExternalScript", "All", "DefaultHelp", "DscResource", "Class", "Configuration",
              IgnoreCase = true)]
         public string[] Category { get; set; }
 

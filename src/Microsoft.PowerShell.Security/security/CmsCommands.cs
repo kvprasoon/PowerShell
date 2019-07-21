@@ -2,14 +2,13 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Management.Automation;
-using System.Text;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Management.Automation;
 using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
-using System.Diagnostics.CodeAnalysis;
-using System.Collections.ObjectModel;
-using System.Collections.Generic;
+using System.Text;
 
 namespace Microsoft.PowerShell.Commands
 {
@@ -26,7 +25,6 @@ namespace Microsoft.PowerShell.Commands
         /// <summary>
         /// Gets or sets the recipient of the CMS Message.
         /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         [Parameter(Position = 0, Mandatory = true)]
         public CmsMessageRecipient[] To
         {
@@ -402,7 +400,6 @@ namespace Microsoft.PowerShell.Commands
         /// <summary>
         /// Gets or sets the recipient of the CMS Message.
         /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         [Parameter(Position = 1)]
         public CmsMessageRecipient[] To
         {

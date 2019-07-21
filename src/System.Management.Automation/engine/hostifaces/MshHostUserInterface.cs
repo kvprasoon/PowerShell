@@ -1,16 +1,16 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
-using System.IO;
-using System.Text;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Security;
 using System.Globalization;
+using System.IO;
 using System.Management.Automation.Configuration;
+using System.Management.Automation.Internal;
 using System.Management.Automation.Runspaces;
-using Microsoft.PowerShell.Commands;
+using System.Security;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -399,7 +399,7 @@ namespace System.Management.Automation.Host
             private bool _disposed = false;
             public TranscribeOnlyCookie(PSHostUserInterface ui)
             {
-                _ui=ui;
+                _ui = ui;
                 Interlocked.Increment(ref _ui._transcribeOnlyCount);
             }
 
@@ -725,12 +725,12 @@ namespace System.Management.Automation.Host
                         throw new ArgumentException(errorMessage);
                     }
 
-                    if(!Directory.Exists(baseDirectory))
+                    if (!Directory.Exists(baseDirectory))
                     {
                         Directory.CreateDirectory(baseDirectory);
                     }
 
-                    if(!File.Exists(transcript.Path))
+                    if (!File.Exists(transcript.Path))
                     {
                         File.Create(transcript.Path).Dispose();
                     }
@@ -926,7 +926,10 @@ namespace System.Management.Automation.Host
         /// </summary>
         internal static TranscriptionOption GetSystemTranscriptOption(TranscriptionOption currentTranscript)
         {
-            var transcription = Utils.GetPolicySetting<Transcription>(Utils.SystemWideThenCurrentUserConfig);
+            var transcription = InternalTestHooks.BypassGroupPolicyCaching
+                ? Utils.GetPolicySetting<Transcription>(Utils.SystemWideThenCurrentUserConfig)
+                : s_transcriptionSettingCache.Value;
+
             if (transcription != null)
             {
                 // If we have an existing system transcript for this process, use that.
@@ -947,6 +950,9 @@ namespace System.Management.Automation.Host
 
         internal static TranscriptionOption systemTranscript = null;
         private static object s_systemTranscriptLock = new Object();
+        private static Lazy<Transcription> s_transcriptionSettingCache = new Lazy<Transcription>(
+            () => Utils.GetPolicySetting<Transcription>(Utils.SystemWideThenCurrentUserConfig),
+            isThreadSafe: true);
 
         private static TranscriptionOption GetTranscriptOptionFromSettings(Transcription transcriptConfig, TranscriptionOption currentTranscript)
         {
