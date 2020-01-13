@@ -99,20 +99,21 @@ namespace Microsoft.PowerShell.Commands
         /// </summary>
         protected override void BeginProcessing()
         {
-            _commandWrapper = new CommandWrapper();
-            if (string.Equals(ParameterSetName, "File", StringComparison.OrdinalIgnoreCase))
+            _commandWrapper       = new CommandWrapper();
+            bool isFileSet        = string.Equals(ParameterSetName, "File", StringComparison.OrdinalIgnoreCase);
+            bool isLiteralFileSet = string.Equals(ParameterSetName, "LiteralFile", StringComparison.OrdinalIgnoreCase);
+
+            if (isFileSet || isLiteralFileSet)
             {
+                string parameterName = "LiteralPath";
+                if(isFileSet)
+                {
+                    parameterName = "filepath";
+                }
                 _commandWrapper.Initialize(Context, "out-file", typeof(OutFileCommand));
-                _commandWrapper.AddNamedParameter("filepath", _fileName);
                 _commandWrapper.AddNamedParameter("append", _append);
                 _commandWrapper.AddNamedParameter("encoding", Encoding);
-            }
-            else if (string.Equals(ParameterSetName, "LiteralFile", StringComparison.OrdinalIgnoreCase))
-            {
-                _commandWrapper.Initialize(Context, "out-file", typeof(OutFileCommand));
-                _commandWrapper.AddNamedParameter("LiteralPath", _fileName);
-                _commandWrapper.AddNamedParameter("append", _append);
-                _commandWrapper.AddNamedParameter("encoding", Encoding);
+                _commandWrapper.AddNamedParameter(parameterName, _fileName);
             }
             else
             {

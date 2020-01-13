@@ -18,6 +18,15 @@ Describe "Tee-Object" -Tags "CI" {
 	        Write-Output teeobjecttest3  | Tee-Object $teefile
 	        Get-Content $teefile | Should -BeExactly "teeobjecttest3"
 	        Remove-Item $teefile -ErrorAction SilentlyContinue
+        }
+
+	    It "Should tee the output to a file with specific encoding" {
+            $teefile = $testfile
+            $Encoding = 'Unicode'
+	        Write-Output teeobjecttest3  | Tee-Object $teefile -Encoding
+	        $FileStream = [System.IO.StreamReader]::New($teefile,([System.Text.Encoding]::Default),$True)
+            $FileStream.CurrentEncoding.EncodingName | Should -Be $Encoding
+            Remove-Item $teefile -ErrorAction SilentlyContinue
 	    }
     }
 }
