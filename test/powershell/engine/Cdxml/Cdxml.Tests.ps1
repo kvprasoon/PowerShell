@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 $script:CimClassName = "PSCore_CimTest1"
 $script:CimNamespace = "root/default"
@@ -162,7 +162,7 @@ Describe "Cdxml cmdlets are supported" -Tag CI,RequireAdminOnWindows {
 
         It "Should be possible to invoke a method on an object returned by Get-CimTest" @ItSkipOrPending {
             $result = Get-CimTest | Select-Object -first 1
-            $result.GetCimSessionInstanceId() | Should -BeOfType [guid]
+            $result.GetCimSessionInstanceId() | Should -BeOfType guid
         }
     }
 

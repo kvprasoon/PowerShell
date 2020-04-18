@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 #
 # Run the new parser, return either errors or the ast
@@ -8,7 +8,7 @@ function Get-ParseResults
 {
     [CmdletBinding()]
     param(
-        [Parameter(ValueFromPipeline=$True,Mandatory=$True)]
+        [Parameter(ValueFromPipeline=$true,Mandatory=$true)]
         [string]$src,
         [switch]$Ast
     )
@@ -25,9 +25,9 @@ function Get-RuntimeError
 {
     [CmdletBinding()]
     param(
-        [Parameter(ValueFromPipeline=$True,Mandatory=$True)][string]$src
+        [Parameter(ValueFromPipeline=$true,Mandatory=$true)][string]$src
     )
- 
+
     $errors = $null
     try
     {

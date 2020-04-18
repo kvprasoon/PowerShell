@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 Describe "Get-ChildItem" -Tags "CI" {
 
@@ -214,16 +214,16 @@ Describe "Get-ChildItem" -Tags "CI" {
         It 'can handle mixed case in Env variables' {
             try
             {
-                $env:__FOOBAR = 'foo'
-                $env:__foobar = 'bar'
+                $env:__FOODBAR = 'food'
+                $env:__foodbar = 'bar'
 
-                $foobar = Get-Childitem env: | Where-Object {$_.Name -eq '__foobar'}
+                $foodbar = Get-Childitem env: | Where-Object {$_.Name -eq '__foodbar'}
                 $count = if ($IsWindows) { 1 } else { 2 }
-                ($foobar | Measure-Object).Count | Should -Be $count
+                ($foodbar | Measure-Object).Count | Should -Be $count
             }
             catch
             {
-                Get-ChildItem env: | Where-Object {$_.Name -eq '__foobar'} | Remove-Item -ErrorAction SilentlyContinue
+                Get-ChildItem env: | Where-Object {$_.Name -eq '__foodbar'} | Remove-Item -ErrorAction SilentlyContinue
             }
         }
     }
@@ -281,7 +281,7 @@ Describe 'FileSystem Provider Formatting' -Tag "CI","RequireAdminOnWindows" {
             New-Item -Path $modeTestDir -Name $itemName -ItemType $itemType
         }
 
-        $item | Should -BeOfType "System.IO.FileSystemInfo"
+        $item | Should -BeOfType System.IO.FileSystemInfo
 
         $actualMode = [Microsoft.PowerShell.Commands.FileSystemProvider]::Mode($item)
         $actualMode | Should -BeExactly $expectedMode

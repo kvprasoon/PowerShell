@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
 Describe 'Positive Parse Properties Tests' -Tags "CI" {
@@ -229,7 +229,7 @@ Describe 'Positive Parse Properties Tests' -Tags "CI" {
                 '111' -Match '1'
                 $Matches
                 $mAtches
-                $Error[0]
+                $error[0]
                 $error
                 $pwd
                 foreach ($i in 1..10) {$foreach}
@@ -887,7 +887,7 @@ class A
 
     [int] GetX([Foo.Bar]$bar)
     {
-        Set-StrictMode -Version latest
+        Set-StrictMode -Version 3.0
         return $bar.x
     }
 }

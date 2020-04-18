@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 Function Install-ModuleIfMissing {
     param(
@@ -28,7 +28,12 @@ Function Test-IsInvokeDscResourceEnable {
 Describe "Test PSDesiredStateConfiguration" -tags CI {
     BeforeAll {
         $MissingLibmi = $false
-        if ((Get-PlatformInfo) -match "alpine|raspbian") {
+        $platformInfo = Get-PlatformInfo
+        if (
+            ($platformInfo.Platform -match "alpine|raspbian") -or
+            ($platformInfo.Platform -eq "debian" -and ($platformInfo.Version -eq '10' -or $platformInfo.Version -eq '')) -or # debian 11 has empty Version ID
+            ($platformInfo.Platform -eq 'centos' -and $platformInfo.Version -eq '8')
+        ) {
             $MissingLibmi = $true
         }
     }
@@ -471,7 +476,7 @@ Describe "Test PSDesiredStateConfiguration" -tags CI {
             it "Resource with embedded resource not supported and a warning should be produced"  {
 
                 Set-ItResult -Pending -Because "Test is unreliable in release automation."
-                
+
                 if (!(Test-IsInvokeDscResourceEnable)) {
                     Set-ItResult -Skipped -Because "Feature not enabled"
                 }
@@ -481,7 +486,7 @@ Describe "Test PSDesiredStateConfiguration" -tags CI {
                 }
 
                 try {
-                    Invoke-DscResource -Name xWebSite -ModuleName 'xWebAdministration' -Method Test -Property @{TestScript = 'foobar' } -ErrorAction Stop -WarningVariable warnings
+                    Invoke-DscResource -Name xWebSite -ModuleName 'xWebAdministration' -Method Test -Property @{TestScript = 'foodbar' } -ErrorAction Stop -WarningVariable warnings
                 }
                 catch{
                     #this will fail too, but that is nat what we are testing...
@@ -530,14 +535,14 @@ Describe "Test PSDesiredStateConfiguration" -tags CI {
                 $result = Invoke-DscResource -Name PSModule -ModuleName $psGetModuleSpecification -Method Get -Property @{ Name = 'PsDscResources' }
                 $result | Should -Not -BeNullOrEmpty
                 $result.Author | Should -BeLike 'Microsoft*'
-                $result.InstallationPolicy | Should -BeOfType [string]
-                $result.Guid | Should -BeOfType [Guid]
+                $result.InstallationPolicy | Should -BeOfType string
+                $result.Guid | Should -BeOfType Guid
                 $result.Ensure | Should -Be 'Present'
                 $result.Name | Should -Be 'PsDscResources'
                 $result.Description | Should -BeLike 'This*DSC*'
-                $result.InstalledVersion | Should -BeOfType [Version]
+                $result.InstalledVersion | Should -BeOfType Version
                 $result.ModuleBase | Should -BeLike '*PSDscResources*'
-                $result.Repository | Should -BeOfType [string]
+                $result.Repository | Should -BeOfType string
                 $result.ModuleType | Should -Be 'Manifest'
             }
         }

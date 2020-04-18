@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
 Import-Module HelpersCommon
@@ -133,7 +133,7 @@ Describe "Get-ExperimentalFeature Tests" -tags "Feature","RequireAdminOnWindows"
 
 Describe "Default enablement of Experimental Features" -Tags CI {
     BeforeAll {
-        $isPreview = $PSVersionTable.GitCommitId.Contains("preview")
+        $isPreview = $PSVersionTable.GitCommitId -match "preview|daily"
 
         Function BeEnabled {
             [CmdletBinding()]

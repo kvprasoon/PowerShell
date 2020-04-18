@@ -1,4 +1,4 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
+# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
 Describe "Get-Date DRT Unit Tests" -Tags "CI" {
@@ -24,13 +24,18 @@ Describe "Get-Date DRT Unit Tests" -Tags "CI" {
         Get-date -Date:"Jan 1, 2020"  -Format:"MMM-dd-yy" | Should -Be "Jan-01-20"
     }
 
+    It "using -AsUTC produces the correct output" {
+        (Get-date -Date:"2020-01-01T00:00:00").Kind | Should -Be Unspecified
+        (Get-date -Date:"2020-01-01T00:00:00" -AsUTC).Kind | Should -Be Utc
+    }
+
     It "using -uformat %s produces the correct output" {
         $seconds = Get-date -Date:"Jan 1, 2020Z" -UFormat:"%s"
 
         $seconds | Should -Be "1577836800"
-        if ($isLinux) {
+        if ($IsLinux) {
             $dateString = "01/01/2020 UTC"
-            if ( (Get-PlatformInfo) -eq "alpine" ) {
+            if ( (Get-PlatformInfo).Platform -eq "alpine" ) {
                 $dateString = "2020-01-01"
             }
             $expected = date --date=${dateString} +%s
@@ -52,6 +57,11 @@ Describe "Get-Date DRT Unit Tests" -Tags "CI" {
 
     # The 'week of year' test cases is from https://en.wikipedia.org/wiki/ISO_week_date
     It "using -uformat 'V' produces the correct output" -TestCases @(
+        @{date="1998-01-02"; week = "01"},
+        @{date="1998-01-03"; week = "01"},
+        @{date="2003-01-03"; week = "01"},
+        @{date="2004-01-02"; week = "01"},
+        @{date="2004-01-03"; week = "01"},
         @{date="2005-01-01"; week = "53"},
         @{date="2005-01-02"; week = "53"},
         @{date="2005-12-31"; week = "52"},
@@ -67,11 +77,21 @@ Describe "Get-Date DRT Unit Tests" -Tags "CI" {
         @{date="2008-12-30"; week = "01"},
         @{date="2008-12-31"; week = "01"},
         @{date="2009-01-01"; week = "01"},
+        @{date="2009-01-02"; week = "01"},
+        @{date="2009-01-03"; week = "01"},
         @{date="2009-12-31"; week = "53"},
         @{date="2010-01-01"; week = "53"},
         @{date="2010-01-02"; week = "53"},
         @{date="2010-01-03"; week = "53"},
-        @{date="2010-01-04"; week = "01"}
+        @{date="2010-01-04"; week = "01"},
+        @{date="2014-01-03"; week = "01"},
+        @{date="2015-01-02"; week = "01"},
+        @{date="2015-01-03"; week = "01"},
+        @{date="2020-01-03"; week = "01"},
+        @{date="2025-01-03"; week = "01"},
+        @{date="2026-01-02"; week = "01"},
+        @{date="2026-01-03"; week = "01"},
+        @{date="2031-01-03"; week = "01"}
     ) {
         param($date, $week)
         Get-date -Date $date -uformat %V | Should -BeExactly $week
@@ -171,6 +191,15 @@ Describe "Get-Date" -Tags "CI" {
         $timeDifference.Minutes      | Should -Be 0
         $timeDifference.Milliseconds | Should -BeLessThan 1
         $timeDifference.Ticks        | Should -BeLessThan 10000
+    }
+
+    It "-FromUnixTime works" {
+
+        # Test conversion of arbitrary date in Unix time: 2020-01-01​T00:00:00.000Z
+        Get-Date -Date 1577836800 -FromUnixTime | Should -Be (Get-Date -Date 637134336000000000 -AsUTC)
+
+        # Test converstion of Unix time start date: 1970-01-01​T00:00:00.000Z
+        Get-Date -Date 0 -FromUnixTime | Should -Be (Get-Date -Date 621355968000000000 -AsUTC)
     }
 }
 

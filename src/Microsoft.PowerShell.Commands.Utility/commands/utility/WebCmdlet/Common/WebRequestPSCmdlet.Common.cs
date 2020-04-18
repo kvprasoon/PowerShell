@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 using System;
@@ -918,7 +918,7 @@ namespace Microsoft.PowerShell.Commands
         /// <summary>
         /// Cancellation token source.
         /// </summary>
-        private CancellationTokenSource _cancelToken = null;
+        internal CancellationTokenSource _cancelToken = null;
 
         /// <summary>
         /// Parse Rel Links.
@@ -1829,7 +1829,7 @@ namespace Microsoft.PowerShell.Commands
 
             // we only support the URL in angle brackets and `rel`, other attributes are ignored
             // user can still parse it themselves via the Headers property
-            string pattern = "<(?<url>.*?)>;\\s*rel=\"(?<rel>.*?)\"";
+            string pattern = "<(?<url>.*?)>;\\s*rel=(\"?)(?<rel>.*?)\\1[^\\w -.]?";
             IEnumerable<string> links;
             if (response.Headers.TryGetValues("Link", out links))
             {
