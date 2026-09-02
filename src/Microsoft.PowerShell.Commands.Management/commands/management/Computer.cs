@@ -952,6 +952,8 @@ $result
                 flags[3] = forcedReboot;
             }
 
+            if (Force) flags[3] = forcedReboot;
+            
             if (ParameterSetName.Equals(DefaultParameterSet, StringComparison.OrdinalIgnoreCase))
             {
                 if (Wait && _timeout != 0)
